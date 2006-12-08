@@ -107,7 +107,12 @@ void ASAP_PlaySong(unsigned int song);
    You must call ASAP_PlaySong() before this function.
    Normally you use a buffer of a few kilobytes or less,
    and call ASAP_Generate() in a loop or via a callback. */
-void ASAP_Generate(void *buffer, unsigned int buffer_len);
+int ASAP_Generate(void *buffer, unsigned int buffer_len);
+
+int ASAP_get_fastplay();
+int ASAP_get_stereo();
+int ASAP_get_type();
+void ASAP_set_reg_output();
 
 #ifdef __cplusplus
 }
