@@ -1,0 +1,152 @@
+#!/usr/bin/perl
+# Shrink a SAP TYPE-R file by removing common repeating frames (and altering fastplay), and removing trailing zero frames.
+# -Don Mahurin
+#
+# Usage: saprshrink < in.sap > out.sap
+#
+
+my $line = <STDIN>;
+$line =~ s:\r$::g;
+chomp($line);
+
+unless($line eq "SAP")
+{
+	print STDERR "Not SAP file\n";
+	exit 1;
+}
+
+my @sap_param_names = ( "SAP" );
+my %sap_params;
+
+while($line = <STDIN>)
+{
+	if($line =~ /\xff/)
+	{
+		print STDERR "SAP Header not terminated\n";
+		exit 1;
+	}
+	$line =~ s:\r$::g;
+	chomp($line);
+	last if($line eq '');
+	if($line =~ /^([A-Z]+)(\s+(.*))$/)
+	{
+		my($name) = $1;
+		my($value) = '';
+		$value = $3 if(defined($2));
+		push(@sap_param_names, $name);
+		$sap_params{$name} = $value;
+	}
+}
+
+if($sap_params{TYPE} != "R")
+{
+	print STDERR "Not SAP Type R\n";
+	exit 1;
+}
+
+my $data_size = defined($sap_params{"STEREO"}) ? 18: 9;
+
+my $common;
+my $last;
+my $count = 0;
+my @all_data = ();
+my $common;
+
+while(read(STDIN, $data, $data_size))
+{
+	if(defined($last) and $data ne $last)
+	{
+		$common = gcd($common, $count);
+		$count = 0;
+	}
+	$count++;
+	$last = $data;
+
+	push(@all_data, $data);
+}
+
+print STDERR "common $common\n";
+
+my(@out_data);
+
+if($common > 1)
+{
+	while(@all_data)
+	{
+		push(@out_data, shift(@all_data));
+		for($i = 1; $i < $common; $i++)
+		{
+			shift(@all_data);
+		}
+	}
+	@all_data = @out_data;
+	if(defined($sap_params{BPM}))
+	{
+		$sap_params{FASTPLAY} = 3000 * 312 / $sap_params{BPM};
+	}
+	elsif(defined($sap_params{FASTPLAY}))
+	{
+		$sap_params{BPM} = 3000 * 312 / $sap_params{FASTPLAY};
+		push(@sap_param_names, "BPM");
+	}
+	else
+	{
+		push(@sap_param_names, "FASTPLAY");
+		push(@sap_param_names, "BPM");
+		$sap_params{FASTPLAY} = 312;
+		$sap_params{BPM} = 3000;
+	}
+
+	$sap_params{FASTPLAY} *= $common;
+	$sap_params{BPM} /= $common;
+}
+
+
+foreach $name (@sap_param_names)
+{
+	print $name;
+	if(defined($sap_params{$name}) and $sap_params{$name} ne '')
+	{
+		print " " . $sap_params{$name};
+	}
+	print "\r\n";
+}
+print "\r\n";
+
+# strip trailing zero data
+my $last = $all_data[@all_data -1];
+my @last_aud = unpack("C*", $last);
+while(@all_data > 1 &&
+	$last_aud[0] == 0 &&  $last_aud[2] == 0 && 
+	$last_aud[4] == 0 &&  $last_aud[6] == 0 && 
+	$all_data[@all_data -2] eq $last
+)
+{
+	print STDERR "striping zero end\n";
+	pop(@all_data);
+}
+
+foreach $data (@all_data)
+{
+	print $data;
+}
+
+# gcd(x,y) is the greatest common denominator, defined as follows:
+#
+# gcd(x,0) = x for all x >= 0
+# gcd(x,y) = gcd(y,x%y) if x > y > 0
+# gcd(x,y) is undef if x<0 or y<0
+
+sub gcd {
+  my ($x,$y)=@_;
+
+#  print STDERR "c $x $y\n";
+  return undef if $x<0 or $y<0;
+  ($x,$y) = ($y,$x) if $x < $y;
+  while ($y != 0) {
+    ($x,$y) = ($y,$x % $y);
+  }
+  return $x;
+}
+
+ 	  	 

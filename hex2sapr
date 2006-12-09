@@ -1,0 +1,13 @@
+#!/usr/bin/perl
+
+local $/ = undef;
+
+$text = <>;
+
+$text =~ /(\r?\n\r?\n)/;
+
+print $`.$&;
+$data = $';
+
+$data =~ s/\s//gs;
+print pack("H*", $data);

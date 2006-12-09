@@ -1,0 +1,34 @@
+#!/usr/bin/perl
+
+local $/ = undef;
+
+my $audsize = 9;
+
+$text = <>;
+
+$text =~ /(\r?\n)((\r?\n)|(\xff))/;
+
+$NL = $1;
+if(defined($3))
+{
+	$text = $`.$&;
+	$data = $';
+}
+elsif(defined($4))
+{
+	$text= $` . $1;
+	print $NL;
+	$data = $4 . $';
+}
+else { $data = $text; $text=''; $NL = "\n"; }
+if($text =~ /\bAUDSIZE\s+(\d+)\b/)
+{
+	$audsize = $1;
+}
+print $text;
+
+while($data ne '')
+{
+	$line = substr($data, 0, $audsize, '');
+	print unpack("H*", $line) . "\r\n";
+}
