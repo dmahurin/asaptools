@@ -61,6 +61,8 @@ extern "C" {
 #define AUDIO_FORMAT_S16_NE  AUDIO_FORMAT_S16_LE
 #endif
 
+int ASAP_ParseDuration(const char *s);
+
 /* Initializes ASAP.
    "frequency" is sample rate in Hz (for example 44100).
    "audio_format" is the format of generated samples (see values above).
@@ -112,6 +114,7 @@ int ASAP_Generate(void *buffer, unsigned int buffer_len);
 int ASAP_get_fastplay();
 int ASAP_get_stereo();
 int ASAP_get_type();
+int ASAP_get_duration();
 void ASAP_set_reg_output();
 
 #ifdef __cplusplus

@@ -42,9 +42,8 @@ static const char *output_file = NULL;
 static unsigned int song = 1000; /* default */
 static unsigned int quality = 1;
 static unsigned int frequency = 44100;
-static unsigned int seconds = 180;
+static int duration = -1;
 static unsigned int use_16bit = 1;
-static unsigned int reg_only = 0;
 
 static int set_output(const char *s)
 {
@@ -92,29 +91,10 @@ static int set_frequency(const char *s)
 
 static int set_time(const char *s)
 {
-	unsigned int newmin;
-	const char *p;
-	if (s[0] == '-') return -1;
-	if (s[0] < '0' || s[0] > '9') {
+	duration = ASAP_ParseDuration(s);
+	if (duration <= 0)
 		print_error("invalid time format");
-		return 1;
-	}
-	newmin = s[0] - '0';
-	p = s + 1;
-	if (*p >= '0' && *p <= '9')
-		newmin = 10 * newmin + *p++ - '0';
-	if (*p == ':') {
-		unsigned int newsec;
-		if (newmin > 59) {
-			print_error("maximum time is 59:59");
-			return 1;
-		}
-		if (set_dec(p + 1, &newsec, "SS", newmin == 0 ? 1 : 0, 59))
-			return 1;
-		seconds = 60 * newmin + newsec;
-		return 0;
-	}
-	return set_dec(s, &seconds, "time", 1, 3599);
+	return 0;
 }
 
 /* write 16-bit word as little endian */
@@ -146,7 +126,7 @@ int main(int argc, char *argv[])
 		{ "rate=", set_frequency }
 	};
 	int i;
-	int wav = 1;
+	int reg_output = 0;
 	int files_processed = 0;
 	for (i = 1; i < argc; i++) {
 		const char *arg = argv[i];
@@ -174,8 +154,7 @@ int main(int argc, char *argv[])
 			if (j < sizeof(param_opts) / sizeof(param_opts[0]))
 				continue;
 			if (strcmp(arg, "-R") == 0 || strcmp(arg, "--reg-only") == 0) {
-				reg_only = 1;
-				wav = 0;
+				reg_output = 1;
 				continue;
 			}
 			if (strcmp(arg, "-b") == 0 || strcmp(arg, "--byte-samples") == 0) {
@@ -269,8 +248,21 @@ int main(int argc, char *argv[])
 			channels = ASAP_GetChannels();
 			block_size = channels << use_16bit;
 			bytes_per_second = frequency * block_size;
-			n_bytes = seconds * bytes_per_second;
-			if(wav)
+			if(duration < 0) {
+				duration = ASAP_get_duration();
+				if (duration < 0)
+					duration = 180 * 1000;
+			}
+			n_bytes = duration * bytes_per_second / 1000;
+			if(reg_output)
+			{
+				ASAP_set_reg_output();
+
+				fprintf(fp,
+				"SAP\r\nTYPE R\r\nFASTPLAY %u\r\n%s\r\n", ASAP_get_fastplay(), ASAP_get_stereo() ? "STEREO\r\n": "");
+				n_bytes = (1 + ASAP_get_stereo()) * 9 * 50 * duration / 1000;
+			}
+			else
 			{
 			fwrite("RIFF", 1, 4, fp);
 			fput32(n_bytes + 36, fp);
@@ -282,14 +274,6 @@ int main(int argc, char *argv[])
 			fput16(8 << use_16bit, fp);
 			fwrite("data", 1, 4, fp);
 			fput32(n_bytes, fp);
-			}
-			if(reg_only)
-			{
-				ASAP_set_reg_output();
-
-				fprintf(fp,
-				"SAP\r\nTYPE R\r\nFASTPLAY %u\r\n%s\r\n", ASAP_get_fastplay(), ASAP_get_stereo() ? "STEREO\r\n": "");
-				n_bytes = (1 + ASAP_get_stereo()) * 9 * 50 * seconds;
 			}
 			while (n_bytes > 0 || ASAP_get_type() == 'R') {
 				int n = ASAP_Generate(buffer,

@@ -24,6 +24,7 @@
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "asap.h"
 #include "asap_internal.h"
@@ -276,15 +277,14 @@ void ASAP_Initialize(unsigned int frequency, unsigned int audio_format, unsigned
 static char sap_type;
 static UWORD sap_player = 0;
 static UWORD sap_music = 0;
-static unsigned int sap_music_audctl = 0;
 static UWORD sap_music_offset = 0;
 static UWORD sap_music_length = 0;
-static unsigned int sap_music_audsize = 9;
 static UWORD sap_init = 0;
 static unsigned int sap_stereo;
 static unsigned int sap_songs;
 static unsigned int sap_defsong;
 static unsigned int sap_fastplay = 312;
+static int sap_duration = -1;
 static unsigned int sap_reg_output = 0;
 
 /* This array maps subsong numbers to track positions for MPT and RMT formats. */
@@ -298,6 +298,7 @@ static const unsigned int perframe2fastplay[] = { 312U, 312U / 2U, 312U / 3U, 31
 int ASAP_get_fastplay() { return sap_fastplay; }
 int ASAP_get_stereo() { return sap_stereo; }
 int ASAP_get_type() { return sap_type; }
+int ASAP_get_duration() { return sap_duration; }
 void ASAP_set_reg_output() { sap_reg_output = 1; }
 
 static int load_native(const unsigned char *module, unsigned int module_len,
@@ -612,6 +613,46 @@ static int parse_dec(const UBYTE **ps, unsigned int *retval)
 	return chars != 0;
 }
 
+// parses strings as milliseconds from mm:ss.dddd
+static int ASAP_ParseDurationN(const char *s, int len)
+{
+	int factor = 1;
+	int n = 0;
+	int t = 0;
+
+	while ( len > 0)
+	{
+		len--;
+		if(isdigit(s[len]))
+		{
+			n += factor * (s[len]-'0');
+			factor *= 10;
+		}
+		else if(s[len] == '.')
+		{
+			t += n*1000/factor;
+			factor = 1;
+			n = 0;
+		}
+		else if(s[len] == ':')
+		{
+			t += n*1000;
+			n = 0;
+			factor = 60;
+		}
+		else
+			return -1;
+	}
+	t += n*1000;
+
+	return t;
+}
+
+int ASAP_ParseDuration(const char *s)
+{
+	return ASAP_ParseDurationN(s, strlen(s));
+}
+
 static int load_sap(const UBYTE *sap_ptr, const UBYTE * const sap_end)
 {
 	if (!tag_matches("SAP", sap_ptr, sap_end))
@@ -671,22 +712,23 @@ static int load_sap(const UBYTE *sap_ptr, const UBYTE * const sap_end)
 			if (!parse_dec(&sap_ptr, &sap_fastplay) || sap_fastplay < 1 )
 				return FALSE;
 		}
-		else if (tag_matches("AUDSIZE ", sap_ptr, sap_end)) {
-			sap_ptr += 8;
-			if (!parse_dec(&sap_ptr, &sap_music_audsize) || sap_music_audsize < 1 )
-				return FALSE;
-		}
-		else if (tag_matches("AUDCTL ", sap_ptr, sap_end)) {
-			sap_ptr += 7;
-			if (!parse_dec(&sap_ptr, &sap_music_audctl) || sap_music_audctl < 1 )
-				return FALSE;
-		}
 		else if (tag_matches("STEREO", sap_ptr, sap_end))
 #ifdef STEREO_SOUND
 			sap_stereo = 1;
 #else
 			return FALSE;
 #endif
+		else if (tag_matches("TIME ", sap_ptr, sap_end)) {
+			sap_ptr += 5;
+			int n = 0;
+			const char *s = (const char *)sap_ptr;
+			for(;*sap_ptr != 0x0d;sap_ptr++, n++)
+				if(sap_ptr > sap_end) return FALSE;
+
+			if(n == 0) return FALSE;
+			sap_duration = ASAP_ParseDurationN(s, n);
+			if(sap_duration < 0) return FALSE;
+		}
 		/* ignore unknown tags */
 		while (sap_ptr[0] != 0x0d) {
 			sap_ptr++;
@@ -800,6 +842,11 @@ unsigned int ASAP_GetDefSong(void)
 	return sap_defsong;
 }
 
+unsigned int ASAP_GetDuration(void)
+{
+	return sap_duration;
+}
+
 static void call_6502(UWORD addr, int max_scanlines)
 {
 	regPC = addr;
@@ -846,9 +893,6 @@ void ASAP_PlaySong(unsigned int song)
 		regX = (UBYTE) song;
 		call_6502((UWORD) (sap_player + 3), SCANLINES_FOR_INIT);
 		break;
-	case 'R':
-		if(sap_music_audctl)
-		POKEY_PutByte(_AUDCTL, sap_music_audctl);
 	case 'm':
 		regA = 0x00;
 		regX = (UBYTE) (sap_music >> 8);
@@ -891,7 +935,7 @@ static int ASAP_Cycle()
 	case 'R':
 		if(sap_music_offset >= sap_music_length) return 0;
 
-		int s = sap_music_audsize;
+		int s = 9; /* AUDF/AUDCTL */
 		for(p = 0; s > 0 && p < MAXPOKEYS; p++)
 		{
 			for(i = 0; s > 0 && i < 4; i++)
