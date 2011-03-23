@@ -259,8 +259,9 @@ int main(int argc, char *argv[])
 				ASAP_set_reg_output();
 
 				fprintf(fp,
-				"SAP\r\nTYPE R\r\nFASTPLAY %u\r\n%s\r\n", ASAP_get_fastplay(), ASAP_get_stereo() ? "STEREO\r\n": "");
+				"SAP\r\nTYPE R\r\nFASTPLAY %u\r\n%s", ASAP_get_fastplay(), ASAP_get_stereo() ? "STEREO\r\n": "");
 				n_bytes = (1 + ASAP_get_stereo()) * 9 * 50 * duration / 1000;
+				fwrite("\xFF\xFF\x00\x00\xFF\xFF", 1, 6, fp);
 			}
 			else
 			{

@@ -655,6 +655,7 @@ int ASAP_ParseDuration(const char *s)
 
 static int load_sap(const UBYTE *sap_ptr, const UBYTE * const sap_end)
 {
+	int abin = 0;
 	if (!tag_matches("SAP", sap_ptr, sap_end))
 		return FALSE;
 	sap_type = '?';
@@ -667,7 +668,10 @@ static int load_sap(const UBYTE *sap_ptr, const UBYTE * const sap_end)
 			return FALSE;
 		sap_ptr += 2;
 		if (sap_ptr[0] == 0xff)
+		{
+			abin = 1;
 			break;
+		}
 		if (sap_ptr[0] == '\n')
 		{
 			sap_ptr ++;
@@ -748,6 +752,8 @@ static int load_sap(const UBYTE *sap_ptr, const UBYTE * const sap_end)
 			return FALSE;
 	case 'R':
 		{
+			if(abin)
+				sap_ptr += 6;
 			sap_music_length = (int)(sap_end - sap_ptr);
 			memset(memory, 0, sizeof(memory));
 			memcpy(memory, sap_ptr, sap_music_length);
