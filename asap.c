@@ -49,18 +49,18 @@ static const unsigned char cmr_bass_table[] = {
 
 UBYTE memory[65536 + 2];
 
-int xpos = 0;
-int xpos_limit = 0;
-UBYTE wsync_halt = 0;
+int ANTIC_xpos = 0;
+int ANTIC_xpos_limit = 0;
+int ANTIC_wsync_halt = 0;
 
 /* structures to hold the 9 pokey control bytes */
-UBYTE AUDF[4 * MAXPOKEYS];	/* AUDFx (D200, D202, D204, D206) */
-UBYTE AUDC[4 * MAXPOKEYS];	/* AUDCx (D201, D203, D205, D207) */
-UBYTE AUDCTL[MAXPOKEYS];	/* AUDCTL (D208) */
-int Base_mult[MAXPOKEYS];		/* selects either 64Khz or 15Khz clock mult */
+UBYTE POKEY_AUDF[4 * POKEY_MAXPOKEYS];	/* AUDFx (D200, D202, D204, D206) */
+UBYTE POKEY_AUDC[4 * POKEY_MAXPOKEYS];	/* AUDCx (D201, D203, D205, D207) */
+UBYTE POKEY_AUDCTL[POKEY_MAXPOKEYS];	/* AUDCTL (D208) */
+int POKEY_Base_mult[POKEY_MAXPOKEYS];		/* selects either 64Khz or 15Khz clock mult */
 
-UBYTE poly9_lookup[511];
-UBYTE poly17_lookup[16385];
+UBYTE POKEY_poly9_lookup[511];
+UBYTE POKEY_poly17_lookup[16385];
 static ULONG random_scanline_counter;
 
 static unsigned int enable_stereo = 0;
@@ -77,97 +77,97 @@ static void POKEY_PutByte(UWORD addr, UBYTE byte)
 	addr &= 0x0f;
 #endif
 	switch (addr) {
-	case _AUDC1:
-		AUDC[CHAN1] = byte;
-		Update_pokey_sound(_AUDC1, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC1:
+		POKEY_AUDC[POKEY_CHAN1] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC1, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDC2:
-		AUDC[CHAN2] = byte;
-		Update_pokey_sound(_AUDC2, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC2:
+		POKEY_AUDC[POKEY_CHAN2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC2, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDC3:
-		AUDC[CHAN3] = byte;
-		Update_pokey_sound(_AUDC3, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC3:
+		POKEY_AUDC[POKEY_CHAN3] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC3, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDC4:
-		AUDC[CHAN4] = byte;
-		Update_pokey_sound(_AUDC4, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC4:
+		POKEY_AUDC[POKEY_CHAN4] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC4, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDCTL:
-		AUDCTL[0] = byte;
+	case POKEY_OFFSET_AUDCTL:
+		POKEY_AUDCTL[0] = byte;
 
 		/* determine the base multiplier for the 'div by n' calculations */
-		if (byte & CLOCK_15)
-			Base_mult[0] = DIV_15;
+		if (byte & POKEY_CLOCK_15)
+			POKEY_Base_mult[0] = POKEY_DIV_15;
 		else
-			Base_mult[0] = DIV_64;
+			POKEY_Base_mult[0] = POKEY_DIV_64;
 
-		Update_pokey_sound(_AUDCTL, byte, 0, SOUND_GAIN);
+		POKEYSND_Update(POKEY_OFFSET_AUDCTL, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDF1:
-		AUDF[CHAN1] = byte;
-		Update_pokey_sound(_AUDF1, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF1:
+		POKEY_AUDF[POKEY_CHAN1] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF1, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDF2:
-		AUDF[CHAN2] = byte;
-		Update_pokey_sound(_AUDF2, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF2:
+		POKEY_AUDF[POKEY_CHAN2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF2, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDF3:
-		AUDF[CHAN3] = byte;
-		Update_pokey_sound(_AUDF3, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF3:
+		POKEY_AUDF[POKEY_CHAN3] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF3, byte, 0, SOUND_GAIN);
 		break;
-	case _AUDF4:
-		AUDF[CHAN4] = byte;
-		Update_pokey_sound(_AUDF4, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF4:
+		POKEY_AUDF[POKEY_CHAN4] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF4, byte, 0, SOUND_GAIN);
 		break;
-	case _STIMER:
-		Update_pokey_sound(_STIMER, byte, 0, SOUND_GAIN);
+	case POKEY_OFFSET_STIMER:
+		POKEYSND_Update(POKEY_OFFSET_STIMER, byte, 0, SOUND_GAIN);
 		break;
 #ifdef STEREO_SOUND
-	case _AUDC1 + _POKEY2:
-		AUDC[CHAN1 + CHIP2] = byte;
-		Update_pokey_sound(_AUDC1, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC1 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDC[POKEY_CHAN1 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC1, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDC2 + _POKEY2:
-		AUDC[CHAN2 + CHIP2] = byte;
-		Update_pokey_sound(_AUDC2, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC2 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDC[POKEY_CHAN2 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC2, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDC3 + _POKEY2:
-		AUDC[CHAN3 + CHIP2] = byte;
-		Update_pokey_sound(_AUDC3, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC3 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDC[POKEY_CHAN3 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC3, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDC4 + _POKEY2:
-		AUDC[CHAN4 + CHIP2] = byte;
-		Update_pokey_sound(_AUDC4, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDC4 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDC[POKEY_CHAN4 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDC4, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDCTL + _POKEY2:
-		AUDCTL[1] = byte;
+	case POKEY_OFFSET_AUDCTL + POKEY_OFFSET_POKEY2:
+		POKEY_AUDCTL[1] = byte;
 		/* determine the base multiplier for the 'div by n' calculations */
-		if (byte & CLOCK_15)
-			Base_mult[1] = DIV_15;
+		if (byte & POKEY_CLOCK_15)
+			POKEY_Base_mult[1] = POKEY_DIV_15;
 		else
-			Base_mult[1] = DIV_64;
+			POKEY_Base_mult[1] = POKEY_DIV_64;
 
-		Update_pokey_sound(_AUDCTL, byte, 1, SOUND_GAIN);
+		POKEYSND_Update(POKEY_OFFSET_AUDCTL, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDF1 + _POKEY2:
-		AUDF[CHAN1 + CHIP2] = byte;
-		Update_pokey_sound(_AUDF1, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF1 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDF[POKEY_CHAN1 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF1, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDF2 + _POKEY2:
-		AUDF[CHAN2 + CHIP2] = byte;
-		Update_pokey_sound(_AUDF2, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF2 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDF[POKEY_CHAN2 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF2, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDF3 + _POKEY2:
-		AUDF[CHAN3 + CHIP2] = byte;
-		Update_pokey_sound(_AUDF3, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF3 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDF[POKEY_CHAN3 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF3, byte, 1, SOUND_GAIN);
 		break;
-	case _AUDF4 + _POKEY2:
-		AUDF[CHAN4 + CHIP2] = byte;
-		Update_pokey_sound(_AUDF4, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_AUDF4 + POKEY_OFFSET_POKEY2:
+		POKEY_AUDF[POKEY_CHAN4 + POKEY_CHIP2] = byte;
+		POKEYSND_Update(POKEY_OFFSET_AUDF4, byte, 1, SOUND_GAIN);
 		break;
-	case _STIMER + _POKEY2:
-		Update_pokey_sound(_STIMER, byte, 1, SOUND_GAIN);
+	case POKEY_OFFSET_STIMER + POKEY_OFFSET_POKEY2:
+		POKEYSND_Update(POKEY_OFFSET_STIMER, byte, 1, SOUND_GAIN);
 		break;
 #endif
 	default:
@@ -180,27 +180,27 @@ static void POKEY_Initialise(void)
 	int i;
 	ULONG reg;
 
-	for (i = 0; i < (MAXPOKEYS * 4); i++) {
-		AUDC[i] = 0;
-		AUDF[i] = 0;
+	for (i = 0; i < (POKEY_MAXPOKEYS * 4); i++) {
+		POKEY_AUDC[i] = 0;
+		POKEY_AUDF[i] = 0;
 	}
 
-	for (i = 0; i < MAXPOKEYS; i++) {
-		AUDCTL[i] = 0;
-		Base_mult[i] = DIV_64;
+	for (i = 0; i < POKEY_MAXPOKEYS; i++) {
+		POKEY_AUDCTL[i] = 0;
+		POKEY_Base_mult[i] = POKEY_DIV_64;
 	}
 
 	/* initialise poly9_lookup */
 	reg = 0x1ff;
 	for (i = 0; i < 511; i++) {
 		reg = ((((reg >> 5) ^ reg) & 1) << 8) + (reg >> 1);
-		poly9_lookup[i] = (UBYTE) reg;
+		POKEY_poly9_lookup[i] = (UBYTE) reg;
 	}
 	/* initialise poly17_lookup */
 	reg = 0x1ffff;
 	for (i = 0; i < 16385; i++) {
 		reg = ((((reg >> 5) ^ reg) & 0xff) << 9) + (reg >> 8);
-		poly17_lookup[i] = (UBYTE) (reg >> 1);
+		POKEY_poly17_lookup[i] = (UBYTE) (reg >> 1);
 	}
 
 	random_scanline_counter = 0;
@@ -211,20 +211,20 @@ UBYTE ASAP_GetByte(UWORD addr)
 	unsigned int i;
 	switch (addr & 0xff0f) {
 	case 0xd20a:
-		i = random_scanline_counter + (unsigned int) xpos + (unsigned int) xpos / LINE_C * DMAR;
-		if (AUDCTL[0] & POLY9)
-			return poly9_lookup[i % POLY9_SIZE];
+		i = random_scanline_counter + (unsigned int) ANTIC_xpos + (unsigned int) ANTIC_xpos / LINE_C * DMAR;
+		if (POKEY_AUDCTL[0] & POKEY_POLY9)
+			return POKEY_poly9_lookup[i % POKEY_POLY9_SIZE];
 		else {
 			const UBYTE *ptr;
-			i %= POLY17_SIZE;
-			ptr = poly17_lookup + (i >> 3);
+			i %= POKEY_POLY17_SIZE;
+			ptr = POKEY_poly17_lookup + (i >> 3);
 			i &= 7;
 			return (UBYTE) ((ptr[0] >> i) + (ptr[1] << (8 - i)));
 		}
 	case 0xd40b:
-		return (UBYTE) ((unsigned int) xpos / (unsigned int) (2 * (LINE_C - DMAR)) % 156U);
+		return (UBYTE) ((unsigned int) ANTIC_xpos / (unsigned int) (2 * (LINE_C - DMAR)) % 156U);
 	default:
-		return dGetByte(addr);
+		return MEMORY_dGetByte(addr);
 	}
 }
 
@@ -235,15 +235,15 @@ void ASAP_PutByte(UWORD addr, UBYTE byte)
 	if ((addr >> 8) == 0xd2)
 		POKEY_PutByte(addr, byte);
 	else if ((addr & 0xff0f) == 0xd40a) {
-		if (xpos <= WSYNC_C && xpos_limit >= WSYNC_C)
-			xpos = WSYNC_C;
+		if (ANTIC_xpos <= WSYNC_C && ANTIC_xpos_limit >= WSYNC_C)
+			ANTIC_xpos = WSYNC_C;
 		else {
-			wsync_halt = TRUE;
-			xpos = xpos_limit;
+			ANTIC_wsync_halt = TRUE;
+			ANTIC_xpos = ANTIC_xpos_limit;
 		}
 	}
 	else
-		dPutByte(addr, byte);
+		MEMORY_dPutByte(addr, byte);
 #else
 	POKEY_PutByte(addr, byte);
 #endif
@@ -252,7 +252,7 @@ void ASAP_PutByte(UWORD addr, UBYTE byte)
 /* We use CIM opcode to return from a subroutine to ASAP */
 void ASAP_CIM(void)
 {
-	xpos = xpos_limit;
+	ANTIC_xpos = ANTIC_xpos_limit;
 }
 
 static unsigned int block_rate;
@@ -267,10 +267,10 @@ void ASAP_Initialize(unsigned int frequency, unsigned int audio_format, unsigned
 	enable_stereo = 5; /* force Pokey_sound_init() in ASAP_PlaySong() */
 	POKEY_Initialise();
 	if (quality == 0)
-		enable_new_pokey = FALSE;
+		POKEYSND_enable_new_pokey = FALSE;
 	else {
-		Pokey_set_mzquality(quality - 1);
-		enable_new_pokey = TRUE;
+		POKEYSND_SetMzQuality(quality - 1);
+		POKEYSND_enable_new_pokey = TRUE;
 	}
 }
 
@@ -855,14 +855,14 @@ unsigned int ASAP_GetDuration(void)
 
 static void call_6502(UWORD addr, int max_scanlines)
 {
-	regPC = addr;
+	CPU_regPC = addr;
 	/* put a CIM at 0xd20a and a return address on stack */
-	dPutByte(0xd20a, 0xd2);
-	dPutByte(0x01fe, 0x09);
-	dPutByte(0x01ff, 0xd2);
-	regS = 0xfd;
-	xpos = 0;
-	GO(max_scanlines * (LINE_C - DMAR));
+	MEMORY_dPutByte(0xd20a, 0xd2);
+	MEMORY_dPutByte(0x01fe, 0x09);
+	MEMORY_dPutByte(0x01ff, 0xd2);
+	CPU_regS = 0xfd;
+	ANTIC_xpos = 0;
+	CPU_GO(max_scanlines * (LINE_C - DMAR));
 }
 
 /* 50 Atari frames for the initialization routine - some SAPs are self-extracting. */
@@ -872,56 +872,56 @@ void ASAP_PlaySong(unsigned int song)
 {
 	UWORD addr;
 	if (enable_stereo != sap_stereo) {
-		Pokey_sound_init(ASAP_MAIN_CLOCK, (uint16) block_rate,
-			1 << sap_stereo, sample_16bit ? SND_BIT16 : 0);
+		POKEYSND_Init(ASAP_MAIN_CLOCK, block_rate,
+			1 << sap_stereo, sample_16bit ? POKEYSND_BIT16 : 0);
 		enable_stereo = sap_stereo;
 	}
-	for (addr = _AUDF1; addr <= _STIMER; addr++)
+	for (addr = POKEY_OFFSET_AUDF1; addr <= POKEY_OFFSET_STIMER; addr++)
 		POKEY_PutByte(addr, 0);
 	if (sap_stereo)
-		for (addr = _AUDF1 + _POKEY2; addr <= _STIMER + _POKEY2; addr++)
+		for (addr = POKEY_OFFSET_AUDF1 + POKEY_OFFSET_POKEY2; addr <= POKEY_OFFSET_STIMER + POKEY_OFFSET_POKEY2; addr++)
 			POKEY_PutByte(addr, 0);
-	regP = 0x30;
+	CPU_regP = 0x30;
 	switch (sap_type) {
 	case 'B':
-		regA = (UBYTE) song;
-		regX = 0x00;
-		regY = 0x00;
+		CPU_regA = (UBYTE) song;
+		CPU_regX = 0x00;
+		CPU_regY = 0x00;
 		/* 5 frames should be enough */
 		call_6502(sap_init, SCANLINES_FOR_INIT);
 		break;
 	case 'C':
-		regA = 0x70;
-		regX = (UBYTE) sap_music;
-		regY = (UBYTE) (sap_music >> 8);
+		CPU_regA = 0x70;
+		CPU_regX = (UBYTE) sap_music;
+		CPU_regY = (UBYTE) (sap_music >> 8);
 		call_6502((UWORD) (sap_player + 3), SCANLINES_FOR_INIT);
-		regA = 0x00;
-		regX = (UBYTE) song;
+		CPU_regA = 0x00;
+		CPU_regX = (UBYTE) song;
 		call_6502((UWORD) (sap_player + 3), SCANLINES_FOR_INIT);
 		break;
 	case 'm':
-		regA = 0x00;
-		regX = (UBYTE) (sap_music >> 8);
-		regY = (UBYTE) sap_music;
+		CPU_regA = 0x00;
+		CPU_regX = (UBYTE) (sap_music >> 8);
+		CPU_regY = (UBYTE) sap_music;
 		call_6502(sap_player, SCANLINES_FOR_INIT);
-		regA = 0x02;
-		regX = song_pos[song];
+		CPU_regA = 0x02;
+		CPU_regX = song_pos[song];
 		call_6502(sap_player, SCANLINES_FOR_INIT);
 		break;
 	case 'r':
-		regA = song_pos[song];
-		regX = (UBYTE) sap_music;
-		regY = (UBYTE) (sap_music >> 8);
+		CPU_regA = song_pos[song];
+		CPU_regX = (UBYTE) sap_music;
+		CPU_regY = (UBYTE) (sap_music >> 8);
 		call_6502(sap_player, SCANLINES_FOR_INIT);
 		break;
 	case 't':
 	case 'T':
-		regA = 0x70;
-		regX = (UBYTE) (sap_music >> 8);
-		regY = (UBYTE) sap_music;
+		CPU_regA = 0x70;
+		CPU_regX = (UBYTE) (sap_music >> 8);
+		CPU_regY = (UBYTE) sap_music;
 		call_6502(sap_player, SCANLINES_FOR_INIT);
-		regA = 0x00;
-		regX = (UBYTE) song;
+		CPU_regA = 0x00;
+		CPU_regX = (UBYTE) song;
 		call_6502(sap_player, SCANLINES_FOR_INIT);
 		tmc_per_frame_counter = 1;
 		break;
@@ -942,17 +942,17 @@ static int ASAP_Cycle()
 		if(sap_music_offset >= sap_music_length) return 0;
 
 		int s = 9; /* AUDF/AUDCTL */
-		for(p = 0; s > 0 && p < MAXPOKEYS; p++)
+		for(p = 0; s > 0 && p < POKEY_MAXPOKEYS; p++)
 		{
 			for(i = 0; s > 0 && i < 4; i++)
 			{
-				POKEY_PutByte(p*_POKEY2+i*2, memory[sap_music_offset++]);
+				POKEY_PutByte(p*POKEY_OFFSET_POKEY2+i*2, memory[sap_music_offset++]);
 				s--;
 				if(!s) break;
-				POKEY_PutByte(p*_POKEY2+i*2+1, memory[sap_music_offset++]);
+				POKEY_PutByte(p*POKEY_OFFSET_POKEY2+i*2+1, memory[sap_music_offset++]);
 				s--;
 			}
-			if(s) { POKEY_PutByte(p*_POKEY2+8, memory[sap_music_offset++]); s--; }
+			if(s) { POKEY_PutByte(p*POKEY_OFFSET_POKEY2+8, memory[sap_music_offset++]); s--; }
 		}
 		break;
 	case 'm':
@@ -970,7 +970,7 @@ static int ASAP_Cycle()
 		break;
 	}
 	random_scanline_counter = (random_scanline_counter + LINE_C * sap_fastplay)
-		                          % ((AUDCTL[0] & POLY9) ? POLY9_SIZE : POLY17_SIZE);
+		                          % ((POKEY_AUDCTL[0] & POKEY_POLY9) ? POKEY_POLY9_SIZE : POKEY_POLY17_SIZE);
 	return 1;
 }
 
@@ -987,10 +987,10 @@ int ASAP_GenerateR(void *buffer, unsigned int buffer_len)
 		{
 			for(i = 0; i < 4; i++)
 			{
-				((unsigned char *)buffer)[ret++] = AUDF[p*4+i];
-				((unsigned char *)buffer)[ret++] = AUDC[p*4+i];
+				((unsigned char *)buffer)[ret++] = POKEY_AUDF[p*4+i];
+				((unsigned char *)buffer)[ret++] = POKEY_AUDC[p*4+i];
 			}
-			((unsigned char *)buffer)[ret++] = AUDCTL[p];
+			((unsigned char *)buffer)[ret++] = POKEY_AUDCTL[p];
 		}
 		buffer_len -= (9 << sap_stereo);
 	}
@@ -1015,7 +1015,7 @@ int ASAP_Generate(void *buffer, unsigned int buffer_len)
 	{
 		if(!ASAP_Cycle()) break;
 		
-		Pokey_process(buffer, samples);
+		POKEYSND_Process(buffer, samples);
 
 		ret += samples << sample_16bit;
 			/* swap bytes in non-native words if necessary */
