@@ -29,15 +29,18 @@ unless($line eq "SAP")
 my @sap_param_names = ( "SAP" );
 my %sap_params;
 
-while($line = <STDIN>)
+while(read(STDIN, $line, 1))
 {
-	if($line =~ /\xff/)
+	# detect start of data with bin header FF FF x x x x, and skip
+	if($line eq "\xff")
 	{
-		print STDERR "SAP Header not terminated\n";
-		exit 1;
+		read(STDIN, $line, 5);
+		last;
 	}
+	$line .= <STDIN> unless ($line eq "\n");
 	$line =~ s:\r$::g;
 	chomp($line);
+	# empty line can also mark the start of data
 	last if($line eq '');
 	if($line =~ /^([A-Z]+)(\s+(.*))$/)
 	{
