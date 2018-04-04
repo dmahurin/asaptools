@@ -114,7 +114,7 @@ int ASAP_Generate(void *buffer, unsigned int buffer_len);
 int ASAP_get_fastplay();
 int ASAP_get_stereo();
 int ASAP_get_type();
-int ASAP_get_duration();
+int ASAP_get_duration(int song);
 void ASAP_set_reg_output();
 
 #ifdef __cplusplus

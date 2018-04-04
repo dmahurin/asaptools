@@ -222,17 +222,13 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 			if (song > 255)
-				ASAP_PlaySong(ASAP_GetDefSong());
-			else if (song < ASAP_GetSongs()) {
-				ASAP_PlaySong(song);
-				/* back to default */
-				song = 1000;
-			}
-			else {
+				song = ASAP_GetDefSong();
+			else if (song >= ASAP_GetSongs()) {
 				print_error("you have requested subsong %u ...", song);
 				print_error("... but %s contains only %u subsongs", arg, ASAP_GetSongs());
 				return 1;
 			}
+			ASAP_PlaySong(song);
 			if (output_file == NULL) {
 				const char *dot;
 				static char output_default[FILENAME_MAX + 5]; /* max. original name + ".wav" + '\0' */
@@ -249,17 +245,17 @@ int main(int argc, char *argv[])
 			block_size = channels << use_16bit;
 			bytes_per_second = frequency * block_size;
 			if(duration < 0) {
-				duration = ASAP_get_duration();
+				duration = ASAP_get_duration(song);
 				if (duration < 0)
 					duration = 180 * 1000;
 			}
-			n_bytes = duration * bytes_per_second / 1000;
+			n_bytes = (0.001 * duration) * bytes_per_second;
 			if(reg_output)
 			{
 				ASAP_set_reg_output();
 
 				fprintf(fp,
-				"SAP\r\nTYPE R\r\nFASTPLAY %u\r\n%s", ASAP_get_fastplay(), ASAP_get_stereo() ? "STEREO\r\n": "");
+				"SAP\r\nTYPE R\r\nTIME %02d:%05.2f\r\nFASTPLAY %u\r\n%s", duration / 60000, duration % 60000 * 0.001, ASAP_get_fastplay(), ASAP_get_stereo() ? "STEREO\r\n": "");
 				n_bytes = (1 + ASAP_get_stereo()) * 9 * 50 * duration / 1000;
 				fwrite("\xFF\xFF\x00\x00\xFF\xFF", 1, 6, fp);
 			}

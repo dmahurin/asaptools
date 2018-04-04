@@ -284,11 +284,11 @@ static unsigned int sap_stereo;
 static unsigned int sap_songs;
 static unsigned int sap_defsong;
 static unsigned int sap_fastplay = 312;
-static int sap_duration = -1;
 static unsigned int sap_reg_output = 0;
 
 /* This array maps subsong numbers to track positions for MPT and RMT formats. */
 static UBYTE song_pos[128];
+static int sap_song_duration[128] = { 0 };
 
 static unsigned int tmc_per_frame;
 static unsigned int tmc_per_frame_counter;
@@ -298,7 +298,7 @@ static const unsigned int perframe2fastplay[] = { 312U, 312U / 2U, 312U / 3U, 31
 int ASAP_get_fastplay() { return sap_fastplay; }
 int ASAP_get_stereo() { return sap_stereo; }
 int ASAP_get_type() { return sap_type; }
-int ASAP_get_duration() { return sap_duration; }
+int ASAP_get_duration(int song) { return sap_song_duration[song]; }
 void ASAP_set_reg_output() { sap_reg_output = 1; }
 
 static int load_native(const unsigned char *module, unsigned int module_len,
@@ -640,6 +640,10 @@ static int ASAP_ParseDurationN(const char *s, int len)
 			n = 0;
 			factor = 60;
 		}
+		else if(len >= 4 && !strncmp(s + len - 4, " LOOP", 5))
+		{
+			len-=4;
+		}
 		else
 			return -1;
 	}
@@ -655,6 +659,7 @@ int ASAP_ParseDuration(const char *s)
 
 static int load_sap(const UBYTE *sap_ptr, const UBYTE * const sap_end)
 {
+	int song = 0;
 	int abin = 0;
 	if (!tag_matches("SAP", sap_ptr, sap_end))
 		return FALSE;
@@ -730,8 +735,9 @@ static int load_sap(const UBYTE *sap_ptr, const UBYTE * const sap_end)
 				if(sap_ptr > sap_end) return FALSE;
 
 			if(n == 0) return FALSE;
-			sap_duration = ASAP_ParseDurationN(s, n);
-			if(sap_duration < 0) return FALSE;
+			sap_song_duration[song] = ASAP_ParseDurationN(s, n);
+			if(sap_song_duration[song] < 0) return FALSE;
+			song++;
 		}
 		/* ignore unknown tags */
 		while (sap_ptr[0] != 0x0d) {
@@ -848,9 +854,9 @@ unsigned int ASAP_GetDefSong(void)
 	return sap_defsong;
 }
 
-unsigned int ASAP_GetDuration(void)
+unsigned int ASAP_GetDuration(int song)
 {
-	return sap_duration;
+	return sap_song_duration[song];
 }
 
 static void call_6502(UWORD addr, int max_scanlines)
