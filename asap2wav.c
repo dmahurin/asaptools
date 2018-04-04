@@ -257,7 +257,9 @@ int main(int argc, char *argv[])
 				fprintf(fp,
 				"SAP\r\nTYPE R\r\nTIME %02d:%05.2f\r\nFASTPLAY %u\r\n%s", duration / 60000, duration % 60000 * 0.001, ASAP_get_fastplay(), ASAP_get_stereo() ? "STEREO\r\n": "");
 				n_bytes = (1 + ASAP_get_stereo()) * 9 * 50 * duration / 1000;
-				fwrite("\xFF\xFF\x00\x00\xFF\xFF", 1, 6, fp);
+				fwrite("\xFF\xFF\x00\x00", 1, 4, fp);
+				fputc((n_bytes-1) & 0xFF, fp);
+				fputc((n_bytes-1) >> 8 & 0xFF, fp);
 			}
 			else
 			{
@@ -272,7 +274,7 @@ int main(int argc, char *argv[])
 			fwrite("data", 1, 4, fp);
 			fput32(n_bytes, fp);
 			}
-			while (n_bytes > 0 || ASAP_get_type() == 'R') {
+			while (n_bytes > 0) {
 				int n = ASAP_Generate(buffer,
 					n_bytes < sizeof(buffer) ?
 					n_bytes : sizeof(buffer)
